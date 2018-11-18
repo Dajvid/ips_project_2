@@ -7,10 +7,16 @@
 #include "mmal.h"
 #include <sys/mman.h> // mmap
 #include <stdbool.h> // bool
+#include <assert.h> // assert
 
 #ifdef NDEBUG
 /**
  * The structure header encapsulates data of a single memory block.
+ *   ---+------+----------------------------+---
+ *      |Header|DDD not_free DDDDD...free...|
+ *   ---+------+-----------------+----------+---
+ *             |-- Header.asize -|
+ *             |-- Header.size -------------|
  */
 typedef struct header Header;
 struct header {
@@ -33,6 +39,14 @@ struct header {
 
 /**
  * The arena structure.
+ *   /--- arena metadata
+ *   |     /---- header of the first block
+ *   v     v
+ *   +-----+------+-----------------------------+
+ *   |Arena|Header|.............................|
+ *   +-----+------+-----------------------------+
+ *
+ *   |--------------- Arena.size ---------------|
  */
 typedef struct arena Arena;
 struct arena {
@@ -46,9 +60,9 @@ struct arena {
     size_t size;
 };
 
-#define PAGE_SIZE 128*1024
+#define PAGE_SIZE (128*1024)
 
-#endif
+#endif // NDEBUG
 
 Arena *first_arena = NULL;
 
@@ -67,6 +81,7 @@ size_t allign_page(size_t size)
  * Allocate a new arena using mmap.
  * @param req_size requested size in bytes. Should be alligned to PAGE_SIZE.
  * @return pointer to a new arena, if successfull. NULL if error.
+ * @pre req_size > sizeof(Arena) + sizeof(Header)
  */
 
 /**
@@ -79,15 +94,27 @@ size_t allign_page(size_t size)
 static
 Arena *arena_alloc(size_t req_size)
 {
+    assert(req_size > sizeof(Arena) + sizeof(Header));
     // FIXME
     (void)req_size;
     return NULL;
 }
 
 /**
+ * Appends a new arena to the end of the arena list.
+ * @param a     already allocated arena
+ */
+static
+void arena_append(Arena *a)
+{
+    (void)a;
+}
+
+/**
  * Header structure constructor (alone, not used block).
  * @param hdr       pointer to block metadata.
  * @param size      size of free block
+ * @pre size > 0
  */
 /**
  *   +-----+------+------------------------+----+
@@ -99,18 +126,37 @@ Arena *arena_alloc(size_t req_size)
 static
 void hdr_ctor(Header *hdr, size_t size)
 {
+    assert(size > 0);
     // FIXME
     (void)hdr;
     (void)size;
 }
 
 /**
- * Splits one block into two.
+ * Checks if the given free block should be split in two separate blocks.
+ * @param hdr       header of the free block
+ * @param size      requested size of data
+ * @return true if the block should be split
+ * @pre hdr->asize == 0
+ * @pre size > 0
+ */
+static
+bool hdr_should_split(Header *hdr, size_t size)
+{
+    assert(hdr->asize == 0);
+    assert(size > 0);
+    // FIXME
+    (void)hdr;
+    (void)size;
+    return false;
+}
+
+/**
+ * Splits one block in two.
  * @param hdr       pointer to header of the big block
  * @param req_size  requested size of data in the (left) block.
- * @pre   (req_size % PAGE_SIZE) = 0
- * @pre   (hdr->size >= req_size + 2*sizeof(Header))
  * @return pointer to the new (right) block header.
+ * @pre   (hdr->size >= req_size + 2*sizeof(Header))
  */
 /**
  * Before:        |---- hdr->size ---------|
@@ -131,6 +177,7 @@ void hdr_ctor(Header *hdr, size_t size)
 static
 Header *hdr_split(Header *hdr, size_t req_size)
 {
+    assert((hdr->size >= req_size + 2*sizeof(Header)));
     // FIXME
     (void)hdr;
     (void)req_size;
@@ -138,14 +185,18 @@ Header *hdr_split(Header *hdr, size_t req_size)
 }
 
 /**
- * Detect if two blocks adjacent blocks could be merged.
+ * Detect if two adjacent blocks could be merged.
  * @param left      left block
  * @param right     right block
  * @return true if two block are free and adjacent in the same arena.
+ * @pre left->next == right
+ * @pre left != right
  */
 static
 bool hdr_can_merge(Header *left, Header *right)
 {
+    assert(left->next == right);
+    assert(left != right);
     // FIXME
     (void)left;
     (void)right;
@@ -156,19 +207,53 @@ bool hdr_can_merge(Header *left, Header *right)
  * Merge two adjacent free blocks.
  * @param left      left block
  * @param right     right block
+ * @pre left->next == right
+ * @pre left != right
  */
 static
 void hdr_merge(Header *left, Header *right)
 {
+    assert(left->next == right);
+    assert(left != right);
     (void)left;
     (void)right;
     // FIXME
 }
 
 /**
+ * Finds the first free block that fits to the requested size.
+ * @param size      requested size
+ * @return pointer to the header of the block or NULL if no block is available.
+ * @pre size > 0
+ */
+static
+Header *first_fit(size_t size)
+{
+    assert(size > 0);
+    // FIXME
+    (void)size;
+    return NULL;
+}
+
+/**
+ * Search the header which is the predecessor to the hdr. Note that if 
+ * @param hdr       successor of the search header
+ * @return pointer to predecessor, hdr if there is just one header.
+ * @pre first_arena != NULL
+ * @post predecessor->next == hdr
+ */
+static
+Header *hdr_get_prev(Header *hdr)
+{
+    assert(first_arena != NULL);
+    (void)hdr;
+    return NULL;
+}
+
+/**
  * Allocate memory. Use first-fit search of available block.
  * @param size      requested size for program
- * @return pointer to allocated data or NULL if error.
+ * @return pointer to allocated data or NULL if error or size = 0.
  */
 void *mmalloc(size_t size)
 {
@@ -180,9 +265,11 @@ void *mmalloc(size_t size)
 /**
  * Free memory block.
  * @param ptr       pointer to previously allocated data
+ * @pre ptr != NULL
  */
 void mfree(void *ptr)
 {
+    assert(ptr != NULL);
     (void)ptr;
     // FIXME
 }
@@ -192,7 +279,7 @@ void mfree(void *ptr)
  * @param ptr       pointer to previously allocated data
  * @param size      a new requested size. Size can be greater, equal, or less
  * then size of previously allocated block.
- * @return pointer to reallocated space.
+ * @return pointer to reallocated space or NULL if size equals to 0.
  */
 void *mrealloc(void *ptr, size_t size)
 {

@@ -22,7 +22,7 @@
         size_t size;
     };
     extern Arena *first_arena;
-    #define PAGE_SIZE 128*1024
+    #define PAGE_SIZE (128*1024)
 #endif
 
 void *mmalloc(size_t size);
