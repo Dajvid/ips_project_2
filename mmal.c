@@ -1,3 +1,4 @@
+// xsedla1d, xhanak34
 /**
  * Implementace My MALloc
  * Demonstracni priklad pro 1. ukol IPS/2018
@@ -8,6 +9,8 @@
 #include <sys/mman.h> // mmap
 #include <stdbool.h> // bool
 #include <assert.h> // assert
+#include <stdio.h>
+#include <stdlib.h>
 
 #ifdef NDEBUG
 /**
@@ -31,7 +34,7 @@ struct header {
     size_t size;
 
     /**
-     * Size of block in bytes allocated for program. asize=0 means the block 
+     * Size of block in bytes allocated for program. asize=0 means the block
      * is not used by a program.
      */
     size_t asize;
@@ -72,7 +75,7 @@ Arena *first_arena = NULL;
 static
 size_t allign_page(size_t size)
 {
-    // FIXME
+    size += PAGE_SIZE - (size % PAGE_SIZE);
     (void)size;
     return size;
 }
@@ -95,9 +98,11 @@ static
 Arena *arena_alloc(size_t req_size)
 {
     assert(req_size > sizeof(Arena) + sizeof(Header));
-    // FIXME
+    Arena *ret = mmap(NULL, req_size, PROT_READ|PROT_WRITE, MAP_PRIVATE, 0, 0);
+    ret->next = NULL;
+    ret->size = req_size;
     (void)req_size;
-    return NULL;
+    return ret;
 }
 
 /**
@@ -107,6 +112,19 @@ Arena *arena_alloc(size_t req_size)
 static
 void arena_append(Arena *a)
 {
+    if (a) { //arena pointer is not null
+        if (first_arena) {
+            Arena *tmp = first_arena;
+            while (tmp->next != first_arena) {
+                tmp = tmp->next;
+            }
+            tmp->next = a;
+            a->next = first_arena;
+        } else { //new arena to be first arena
+            first_arena = a;
+            a->next = a;
+        }
+    }
     (void)a;
 }
 
@@ -127,7 +145,8 @@ static
 void hdr_ctor(Header *hdr, size_t size)
 {
     assert(size > 0);
-    // FIXME
+    hdr->size = size;
+    hdr->asize = 0;
     (void)hdr;
     (void)size;
 }
@@ -145,10 +164,7 @@ bool hdr_should_split(Header *hdr, size_t size)
 {
     assert(hdr->asize == 0);
     assert(size > 0);
-    // FIXME
-    (void)hdr;
-    (void)size;
-    return false;
+    return (hdr->size >= size + sizeof(Header));
 }
 
 /**
@@ -178,10 +194,12 @@ static
 Header *hdr_split(Header *hdr, size_t req_size)
 {
     assert((hdr->size >= req_size + 2*sizeof(Header)));
-    // FIXME
-    (void)hdr;
-    (void)req_size;
-    return NULL;
+    hdr->size = sizeof(Header) + req_size;
+    Header *new = hdr + hdr->size;
+    hdr_ctor(new, req_size);
+    new->next = hdr->next;
+    hdr->next = new;
+    return new;
 }
 
 /**
@@ -197,10 +215,7 @@ bool hdr_can_merge(Header *left, Header *right)
 {
     assert(left->next == right);
     assert(left != right);
-    // FIXME
-    (void)left;
-    (void)right;
-    return false;
+    return (left->asize == 0 && right->asize == 0);
 }
 
 /**
@@ -215,9 +230,8 @@ void hdr_merge(Header *left, Header *right)
 {
     assert(left->next == right);
     assert(left != right);
-    (void)left;
-    (void)right;
-    // FIXME
+    left->size += sizeof(Header) + right->size;
+    left->next = right->next;
 }
 
 /**
@@ -230,13 +244,19 @@ static
 Header *first_fit(size_t size)
 {
     assert(size > 0);
-    // FIXME
-    (void)size;
+    Header *first = first_arena + sizeof(Arena);
+    Header *current = first;
+    while (current->next != first) {
+        if ((current->size - current->asize) > size) {
+            return current;
+        }
+        current = current->next;
+    }
     return NULL;
 }
 
 /**
- * Search the header which is the predecessor to the hdr. Note that if 
+ * Search the header which is the predecessor to the hdr. Note that if
  * @param hdr       successor of the search header
  * @return pointer to predecessor, hdr if there is just one header.
  * @pre first_arena != NULL
@@ -246,8 +266,11 @@ static
 Header *hdr_get_prev(Header *hdr)
 {
     assert(first_arena != NULL);
-    (void)hdr;
-    return NULL;
+    Header *anchor = hdr;
+    while (hdr->next != anchor) {
+        hdr = hdr->next;
+    }
+    return hdr;
 }
 
 /**
