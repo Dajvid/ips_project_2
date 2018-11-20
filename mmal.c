@@ -76,7 +76,6 @@ static
 size_t allign_page(size_t size)
 {
     size += PAGE_SIZE - (size % PAGE_SIZE);
-    (void)size;
     return size;
 }
 
@@ -101,7 +100,6 @@ Arena *arena_alloc(size_t req_size)
     Arena *ret = mmap(NULL, req_size, PROT_READ|PROT_WRITE, MAP_PRIVATE, 0, 0);
     ret->next = NULL;
     ret->size = req_size;
-    (void)req_size;
     return ret;
 }
 
@@ -125,7 +123,6 @@ void arena_append(Arena *a)
             a->next = a;
         }
     }
-    (void)a;
 }
 
 /**
@@ -147,8 +144,6 @@ void hdr_ctor(Header *hdr, size_t size)
     assert(size > 0);
     hdr->size = size;
     hdr->asize = 0;
-    (void)hdr;
-    (void)size;
 }
 
 /**
