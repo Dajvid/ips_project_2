@@ -151,7 +151,6 @@ void hdr_ctor(Header *hdr, size_t size)
     hdr->asize = 0;
 
     Header *first = (Header *)(&first_arena[1]);
-    Header *iter = first;
 }
 
 /**
