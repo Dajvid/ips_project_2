@@ -149,8 +149,6 @@ void hdr_ctor(Header *hdr, size_t size)
     assert(size > 0);
     hdr->size = size;
     hdr->asize = 0;
-
-    Header *first = (Header *)(&first_arena[1]);
 }
 
 /**
@@ -371,14 +369,16 @@ void *mrealloc(void *ptr, size_t size)
     if (hdr_can_merge(to_realloc, to_realloc->next) && (size >= to_realloc->size + to_realloc->next->size)) {
         hdr_merge(to_realloc, to_realloc->next);
     } else {
-        char *new = mmalloc(size);
+        Header *new = mmalloc(size);
         if (!new) {
             return NULL;
         }
 
-        // for(unsigned int i = 0; i < to_realloc->asize; i++) {
-        //     new[i] = *((char *)&to_realloc[i]);
-        // }
+        char *data = (char *)new;
+        new = &new[-1];
+        for(unsigned int i = 0; i < to_realloc->asize; i++) {
+             data[i] = ((char *)(&to_realloc[1]))[i];
+        }
 
         return &(((Header *)new)[1]);
     }
