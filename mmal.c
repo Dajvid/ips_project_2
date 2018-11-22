@@ -1,4 +1,4 @@
-// xsedla1d, xhanak34
+//xhanak34
 /**
  * Implementace My MALloc
  * Demonstracni priklad pro 1. ukol IPS/2018
@@ -222,7 +222,7 @@ bool hdr_can_merge(Header *left, Header *right)
     assert(left->next == right);
     assert(left != right);
 
-    return (right == (Header *)((char *)&left[1] + left->size));
+    return ((right == (Header *)((char *)&left[1] + left->size)) && left->asize == 0 && right->asize == 0);
 }
 
 /**
@@ -342,10 +342,10 @@ void mfree(void *ptr)
     Header *prev = hdr_get_prev(to_free);
 
     if (to_free->next != to_free) {
-        if (to_free->asize == 0 && to_free->next->asize == 0 && hdr_can_merge(to_free, to_free->next)) {
+        if (hdr_can_merge(to_free, to_free->next)) {
             hdr_merge(to_free, to_free->next);
         }
-        if (prev->asize == 0 && to_free->asize == 0 && hdr_can_merge(prev, to_free)) {
+        if (hdr_can_merge(prev, to_free)) {
             hdr_merge(prev, to_free);
         }
     }
@@ -362,11 +362,12 @@ void *mrealloc(void *ptr, size_t size)
 {
     Header *to_realloc = &((Header *)ptr)[-1];
     if (size == 0) {
-        free(ptr);
+        mfree(ptr);
         return NULL;
     }
 
-    if (hdr_can_merge(to_realloc, to_realloc->next) && (size >= to_realloc->size + to_realloc->next->size)) {
+     /*hdr_can_merge(to_realloc, to_realloc->next)*/
+    if ((to_realloc->next == (Header *)((char *)&to_realloc[1] + to_realloc->size)) && (size >= to_realloc->size + to_realloc->next->size)) {
         hdr_merge(to_realloc, to_realloc->next);
     } else {
         Header *new = mmalloc(size);
@@ -380,6 +381,7 @@ void *mrealloc(void *ptr, size_t size)
              data[i] = ((char *)(&to_realloc[1]))[i];
         }
 
+        mfree(ptr);
         return &(((Header *)new)[1]);
     }
 
