@@ -366,8 +366,13 @@ void *mrealloc(void *ptr, size_t size)
         return NULL;
     }
 
+    if (to_realloc->size >= size) {
+        return ptr;
+    }
+
      /*hdr_can_merge(to_realloc, to_realloc->next)*/
-    if ((to_realloc->next == (Header *)((char *)&to_realloc[1] + to_realloc->size)) && (size >= to_realloc->size + to_realloc->next->size)) {
+    if ((to_realloc->next == (Header *)((char *)&to_realloc[1] + to_realloc->size)) &&
+        (size >= to_realloc->size + to_realloc->next->size + sizeof(Header))) {
         hdr_merge(to_realloc, to_realloc->next);
     } else {
         Header *new = mmalloc(size);
