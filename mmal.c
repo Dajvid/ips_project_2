@@ -1,4 +1,4 @@
-//xhanak34
+//xhanak34, xsedla1d
 /**
  * Implementace My MALloc
  * Demonstracni priklad pro 1. ukol IPS/2018
