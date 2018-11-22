@@ -367,7 +367,9 @@ void *mrealloc(void *ptr, size_t size)
     }
 
     if (to_realloc->size >= size) {
-        return ptr;
+        if (hdr_should_split(to_realloc, size)) {
+            hdr_split(to_realloc, size);
+        }
     }
 
      /*hdr_can_merge(to_realloc, to_realloc->next)*/
